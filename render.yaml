@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: lscc-finance-manager-v6
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
