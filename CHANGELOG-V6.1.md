@@ -10,3 +10,10 @@
 - Added server-side read-back verification after Supabase writes.
 - Added cloud health reporting with actual database reachability and revision.
 - Kept the existing Supabase table and data; no database reset is required.
+
+
+## V6.1.1 persistence hotfix
+- Fixed Supabase REST update requests losing the service-role authentication headers when request-specific headers were supplied.
+- Cloud saves can now authenticate correctly for PATCH/POST operations.
+- Client sync status now includes a safe server error message when a save fails.
+- Existing Supabase data/schema are unchanged.
