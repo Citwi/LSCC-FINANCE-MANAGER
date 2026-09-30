@@ -51,3 +51,7 @@ For genuine email reset links, configure these Render environment variables:
 - `RESET_FROM_EMAIL`: sender address approved by Resend (prefer a verified domain).
 - `APP_PUBLIC_URL`: `https://lscc-finance-manager-1.onrender.com` for this deployment.
 No Supabase SQL migration is required. The reset token is signed and expires after 30 minutes; changing the password invalidates the previous token.
+
+
+## V6.1.6 SMS Messaging
+The application includes an SMS Messaging module using Africa's Talking. Configure these Render environment variables: AFRICASTALKING_USERNAME, AFRICASTALKING_API_KEY, and AFRICASTALKING_SENDER_ID. The API key is server-side only. The module supports recipient filtering from the membership database, selected members, custom numbers, templates, personalization with {MemberName}, SMS history, Kenyan number normalization, and batched sending. Africa's Talking must approve the Sender ID before live sending.

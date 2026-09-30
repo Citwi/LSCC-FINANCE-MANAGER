@@ -1,8 +1,8 @@
 {
   "name": "lscc-finance-manager-cloud-v6",
-  "version": "6.1.5",
+  "version": "6.1.6",
   "private": true,
-  "description": "LSCC Finance Manager V6.1.5 cloud application",
+  "description": "LSCC Finance Manager V6.1.6 cloud application",
   "scripts": {"start":"node server.js"},
   "engines": {"node":">=20"}
 }

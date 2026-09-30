@@ -18,3 +18,11 @@ services:
         sync: false
       - key: APP_PUBLIC_URL
         sync: false
+      - key: AFRICASTALKING_USERNAME
+        sync: false
+      - key: AFRICASTALKING_API_KEY
+        sync: false
+      - key: AFRICASTALKING_SENDER_ID
+        sync: false
+      - key: AFRICASTALKING_DLR_KEY
+        sync: false
