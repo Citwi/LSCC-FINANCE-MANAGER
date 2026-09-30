@@ -17,3 +17,10 @@
 - Cloud saves can now authenticate correctly for PATCH/POST operations.
 - Client sync status now includes a safe server error message when a save fails.
 - Existing Supabase data/schema are unchanged.
+
+## V6.1.2 – User Settings Restriction
+- Non-Administrator users now see only **My Account** on the Settings page.
+- Non-Administrators can edit only their own display name, username and email address.
+- Non-Administrators can change only their own password.
+- Administrative settings, cloud configuration, backups/restores, reset, income/expense type management, user permissions and user account management remain Administrator-only through the Settings interface.
+- Administrator Settings remain unchanged.
