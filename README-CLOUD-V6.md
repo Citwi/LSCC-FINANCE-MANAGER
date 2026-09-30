@@ -43,3 +43,11 @@ This build changes cloud persistence so that:
 - `/api/health` now checks actual Supabase reachability and reports the current cloud revision.
 
 **Important:** Do not run `supabase.sql` again for this update. The existing `lscc_state` table is reused so existing cloud data is not reset.
+
+
+## V6.1.3 EMAIL PASSWORD RESET
+For genuine email reset links, configure these Render environment variables:
+- `RESEND_API_KEY`: server-only Resend API key.
+- `RESET_FROM_EMAIL`: sender address approved by Resend (prefer a verified domain).
+- `APP_PUBLIC_URL`: `https://lscc-finance-manager-1.onrender.com` for this deployment.
+No Supabase SQL migration is required. The reset token is signed and expires after 30 minutes; changing the password invalidates the previous token.
