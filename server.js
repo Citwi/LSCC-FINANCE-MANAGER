@@ -10,7 +10,7 @@ const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SUPABASE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const SESSION_SECRET=process.env.SESSION_SECRET||'';
 const MAX_BODY=25*1024*1024;
-const APP_VERSION='6.1.6';
+const APP_VERSION='6.1.6.1';
 const AT_USERNAME=process.env.AFRICASTALKING_USERNAME||'';
 const AT_API_KEY=process.env.AFRICASTALKING_API_KEY||'';
 const AT_SENDER_ID=process.env.AFRICASTALKING_SENDER_ID||'';
@@ -45,6 +45,8 @@ async function sendAfricaTalkingBatch(recipients,message){
  return {ok:true,sent,failed,data,providerRecipients:rs};
 }
 
+
+function smsProviderConfig(){if(!AT_USERNAME||!AT_API_KEY)return {configured:false,error:"Africa's Talking username/API key is missing."};if(!AT_SENDER_ID)return {configured:false,error:"Africa's Talking Sender ID is missing."};return {configured:true,username:AT_USERNAME,senderId:AT_SENDER_ID,hasApiKey:true}}
 async function getState(){const rows=await sb('lscc_state?select=id,revision,db,updated_at&id=eq.1');if(!rows.length){await sb('lscc_state',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({id:1,revision:0,db:seed})});return {revision:0,db:seed,updated_at:null}}return rows[0]}
 async function login(body){const st=await getState();const u=(st.db.users||[]).find(x=>(x.username||'').toLowerCase()===(body.username||'').trim().toLowerCase()&&x.passwordHash===body.passwordHash);if(!u)throw Object.assign(new Error('invalid_credentials'),{code:401});return {token:tokenFor(u),revision:st.revision,db:st.db,userId:u.id}}
 async function saveState(revision,db){const rows=await sb('lscc_state?select=revision&id=eq.1');if(!rows.length){if(Number(revision)!==0)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:0});await sb('lscc_state',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id:1,revision:1,db})});return 1}const current=Number(rows[0].revision||0);if(current!==Number(revision||0))throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});const updated=await sb('lscc_state?id=eq.1&revision=eq.'+encodeURIComponent(String(current)),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({revision:current+1,db,updated_at:new Date().toISOString()})});if(!updated.length)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});const verify=await sb('lscc_state?select=revision,updated_at&id=eq.1');if(!verify.length||Number(verify[0].revision)!==current+1)throw new Error('Cloud write verification failed.');return current+1}
@@ -61,6 +63,9 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='POST'&&req.url==='/api/password-reset/confirm'){const body=JSON.parse(await readBody(req));const token=String(body.token||''),passwordHash=String(body.passwordHash||'');if(!token||!passwordHash)return send(res,400,{error:'Reset token and password are required.'});const p=verifyResetToken(token);if(!p)return send(res,400,{error:'The reset link is invalid or expired.'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===p.sub);if(!u||u.passwordHash!==p.pw||(u.email||'').toLowerCase()!==(p.email||'').toLowerCase())return send(res,400,{error:'The reset link is invalid, expired, or has already been used.'});u.passwordHash=passwordHash;await saveState(Number(st.revision||0),st.db);return send(res,200,{ok:true})}
   if(req.method==='GET'&&req.url==='/api/sms/config'){
    const a=auth(req);if(!a)return send(res,401,{error:'unauthorized'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===a.sub);if(!smsAuthorized(u))return send(res,403,{error:'SMS permission required'});return send(res,200,{configured:!!(AT_USERNAME&&AT_API_KEY&&AT_SENDER_ID),senderId:AT_SENDER_ID||'',hasApiKey:!!AT_API_KEY,username:AT_USERNAME||''});
+  }
+  if(req.method==='POST'&&req.url==='/api/sms/test-config'){
+   const a=auth(req);if(!a)return send(res,401,{error:'unauthorized'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===a.sub);if(!smsAuthorized(u))return send(res,403,{error:'SMS permission required'});const c=smsProviderConfig();return send(res,200,c);
   }
   if(req.method==='POST'&&req.url==='/api/sms/send'){
    const a=auth(req);if(!a)return send(res,401,{error:'unauthorized'});const body=JSON.parse(await readBody(req));const st=await getState();const u=(st.db.users||[]).find(x=>x.id===a.sub);if(!smsAuthorized(u))return send(res,403,{error:'You do not have permission to send SMS.'});
