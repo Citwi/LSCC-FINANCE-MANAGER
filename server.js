@@ -10,7 +10,7 @@ const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SUPABASE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const SESSION_SECRET=process.env.SESSION_SECRET||'';
 const MAX_BODY=25*1024*1024;
-const APP_VERSION='6.1.6.1';
+const APP_VERSION='6.1.6.2';
 const AT_USERNAME=process.env.AFRICASTALKING_USERNAME||'';
 const AT_API_KEY=process.env.AFRICASTALKING_API_KEY||'';
 const AT_SENDER_ID=process.env.AFRICASTALKING_SENDER_ID||'';
@@ -61,10 +61,10 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&req.url==='/api/password-reset/request'){const body=JSON.parse(await readBody(req));const email=String(body.email||'').trim().toLowerCase();if(!email)return send(res,400,{error:'Email address is required.'});const st=await getState();const u=(st.db.users||[]).find(x=>(x.email||'').trim().toLowerCase()===email);if(!u)return send(res,200,{ok:true,message:'If that email is registered, a password reset link has been sent.'});if(!u.email)return send(res,200,{ok:true,message:'If that email is registered, a password reset link has been sent.'});const token=resetTokenFor(u);await sendResetEmail(u.email,u.name,token,req);return send(res,200,{ok:true,message:'A password reset link has been sent to the registered email address.'})}
   if(req.method==='POST'&&req.url==='/api/password-reset/confirm'){const body=JSON.parse(await readBody(req));const token=String(body.token||''),passwordHash=String(body.passwordHash||'');if(!token||!passwordHash)return send(res,400,{error:'Reset token and password are required.'});const p=verifyResetToken(token);if(!p)return send(res,400,{error:'The reset link is invalid or expired.'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===p.sub);if(!u||u.passwordHash!==p.pw||(u.email||'').toLowerCase()!==(p.email||'').toLowerCase())return send(res,400,{error:'The reset link is invalid, expired, or has already been used.'});u.passwordHash=passwordHash;await saveState(Number(st.revision||0),st.db);return send(res,200,{ok:true})}
-  if(req.method==='GET'&&req.url==='/api/sms/config'){
+  if(req.method==='GET'&&new URL(req.url,'http://'+(req.headers.host||'localhost')).pathname==='/api/sms/config'){
    const a=auth(req);if(!a)return send(res,401,{error:'unauthorized'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===a.sub);if(!smsAuthorized(u))return send(res,403,{error:'SMS permission required'});return send(res,200,{configured:!!(AT_USERNAME&&AT_API_KEY&&AT_SENDER_ID),senderId:AT_SENDER_ID||'',hasApiKey:!!AT_API_KEY,username:AT_USERNAME||''});
   }
-  if(req.method==='POST'&&req.url==='/api/sms/test-config'){
+  if((req.method==='GET'||req.method==='POST')&&new URL(req.url,'http://'+(req.headers.host||'localhost')).pathname==='/api/sms/test-config'){
    const a=auth(req);if(!a)return send(res,401,{error:'unauthorized'});const st=await getState();const u=(st.db.users||[]).find(x=>x.id===a.sub);if(!smsAuthorized(u))return send(res,403,{error:'SMS permission required'});const c=smsProviderConfig();return send(res,200,c);
   }
   if(req.method==='POST'&&req.url==='/api/sms/send'){

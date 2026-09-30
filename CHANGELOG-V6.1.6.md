@@ -15,3 +15,10 @@
 - Added SMS provider configuration status view without exposing API credentials.
 - Added delivery-report history view using Africa's Talking callback data.
 - Added server-side SMS configuration test endpoint.
+
+
+## V6.1.6.2
+- Fixed SMS Settings connection check to call the deployed GET /api/sms/config endpoint.
+- Added robust query-string handling to SMS configuration routes.
+- Kept GET compatibility for /api/sms/test-config.
+- Bumped application version to 6.1.6.2.
