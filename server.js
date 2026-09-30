@@ -10,7 +10,7 @@ const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SUPABASE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const SESSION_SECRET=process.env.SESSION_SECRET||'';
 const MAX_BODY=25*1024*1024;
-const APP_VERSION='6.1.4';
+const APP_VERSION='6.1.5';
 const RESEND_API_KEY=process.env.RESEND_API_KEY||'';
 const RESET_FROM_EMAIL=process.env.RESET_FROM_EMAIL||'';
 const APP_PUBLIC_URL=(process.env.APP_PUBLIC_URL||'').replace(/\/$/,'');
@@ -34,7 +34,7 @@ async function saveState(revision,db){const rows=await sb('lscc_state?select=rev
 const server=http.createServer(async(req,res)=>{
  try{
   if(req.method==='OPTIONS')return send(res,204,{});
-  if(req.method==='GET'){const pathname=new URL(req.url,'http://'+(req.headers.host||'localhost')).pathname;if(pathname==='/'||pathname==='/index.html')return html(res);}
+  if(req.method==='GET'){const pathname=new URL(req.url,'http://'+(req.headers.host||'localhost')).pathname;if(pathname==='/'||pathname==='/index.html')return html(res);if(pathname==='/liberty-logo.jpeg'){try{const b=fs.readFileSync(path.join(APP_DIR,'liberty-logo.jpeg'));res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=86400'});return res.end(b)}catch(e){return send(res,404,{error:'Logo not found'})}}}
   if(req.method==='GET'&&req.url==='/api/health'){try{const st=await getState();return send(res,200,{ok:true,version:APP_VERSION,cloudConfigured:!!(SUPABASE_URL&&SUPABASE_KEY&&SESSION_SECRET),cloudReachable:true,revision:Number(st.revision||0),updatedAt:st.updated_at||null})}catch(e){return send(res,200,{ok:false,version:APP_VERSION,cloudConfigured:!!(SUPABASE_URL&&SUPABASE_KEY&&SESSION_SECRET),cloudReachable:false,error:e.message||'Cloud database check failed'})}}
   if(req.method==='POST'&&req.url==='/api/login'){
    const body=JSON.parse(await readBody(req));return send(res,200,await login(body));
