@@ -18,3 +18,8 @@
 ## Data and security
 - No Supabase schema changes are required.
 - Existing cloud persistence, password reset, and Resend configuration are retained.
+
+
+## V6.1.5.1 Logo Reliability Fix
+- Embedded the supplied Liberty Synagogue Christian Church logo directly into the application HTML.
+- Login, dashboard branding, and printed receipts no longer depend on a separate static logo file being served.
