@@ -10,6 +10,7 @@ const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SUPABASE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const SESSION_SECRET=process.env.SESSION_SECRET||'';
 const MAX_BODY=25*1024*1024;
+const APP_VERSION='6.1.0';
 
 const seed={income:[],expenses:[],projects:[],members:[],partners:[],homeCells:[],programs:[],programArchive:[],events:[],specialDepartments:[],specialMembers:[],specialIncome:[],specialExpenses:[],mercyIncome:[],mercyExpenses:[],officeSchedule:[],deletedTransactions:[],counters:{member:0,receipt:0,voucher:0,audit:0},incomeTypes:['Offering','Tithe','Thanksgiving','Special Offering','Other'],expenseTypes:['Utilities','Transport','Staff / Ministry','Maintenance','Events','Office','Construction','Other'],settings:{name:'LSCC Finance Manager',currency:'KSh',openingBalance:0,partnerTarget:0},users:[{id:'u-admin',username:'admin',name:'System Administrator',role:'Administrator',email:'',passwordHash:'3f56650c7d6e50dead95cc014265034126dbfee52c8682a10d028bc76a7f9d31',permissions:[]} ]};
 
@@ -20,15 +21,15 @@ function b64u(x){return Buffer.from(x).toString('base64url')}
 function tokenFor(user){const payload={sub:user.id,username:user.username,iat:Date.now(),exp:Date.now()+8*60*60*1000};const p=b64u(JSON.stringify(payload));const sig=crypto.createHmac('sha256',SESSION_SECRET).update(p).digest('base64url');return p+'.'+sig}
 function auth(req){if(!SESSION_SECRET)return null;const h=req.headers.authorization||'';if(!h.startsWith('Bearer '))return null;const t=h.slice(7),parts=t.split('.');if(parts.length!==2)return null;const sig=crypto.createHmac('sha256',SESSION_SECRET).update(parts[0]).digest('base64url');if(!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(parts[1])))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8'));if(!p.exp||p.exp<Date.now())return null;return p}catch(e){return null}}
 async function sb(pathname,opts={}){if(!SUPABASE_URL||!SUPABASE_KEY)throw new Error('Cloud database environment variables are not configured.');const r=await fetch(SUPABASE_URL+'/rest/v1/'+pathname,Object.assign({headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}},opts));const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch(e){data=text}if(!r.ok)throw new Error('Supabase '+r.status+': '+(typeof data==='string'?data:JSON.stringify(data)));return data}
-async function getState(){const rows=await sb('lscc_state?select=id,revision,db&id=eq.1');if(!rows.length){await sb('lscc_state',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({id:1,revision:0,db:seed})});return {revision:0,db:seed}}return rows[0]}
+async function getState(){const rows=await sb('lscc_state?select=id,revision,db,updated_at&id=eq.1');if(!rows.length){await sb('lscc_state',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({id:1,revision:0,db:seed})});return {revision:0,db:seed,updated_at:null}}return rows[0]}
 async function login(body){const st=await getState();const u=(st.db.users||[]).find(x=>(x.username||'').toLowerCase()===(body.username||'').trim().toLowerCase()&&x.passwordHash===body.passwordHash);if(!u)throw Object.assign(new Error('invalid_credentials'),{code:401});return {token:tokenFor(u),revision:st.revision,db:st.db,userId:u.id}}
-async function saveState(revision,db){const rows=await sb('lscc_state?select=revision&id=eq.1');if(!rows.length){if(Number(revision)!==0)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:0});await sb('lscc_state',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id:1,revision:1,db})});return 1}const current=Number(rows[0].revision||0);if(current!==Number(revision||0))throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});const updated=await sb('lscc_state?id=eq.1&revision=eq.'+encodeURIComponent(String(current)),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({revision:current+1,db,updated_at:new Date().toISOString()})});if(!updated.length)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});return current+1}
+async function saveState(revision,db){const rows=await sb('lscc_state?select=revision&id=eq.1');if(!rows.length){if(Number(revision)!==0)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:0});await sb('lscc_state',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id:1,revision:1,db})});return 1}const current=Number(rows[0].revision||0);if(current!==Number(revision||0))throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});const updated=await sb('lscc_state?id=eq.1&revision=eq.'+encodeURIComponent(String(current)),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({revision:current+1,db,updated_at:new Date().toISOString()})});if(!updated.length)throw Object.assign(new Error('revision_conflict'),{code:409,currentRevision:current});const verify=await sb('lscc_state?select=revision,updated_at&id=eq.1');if(!verify.length||Number(verify[0].revision)!==current+1)throw new Error('Cloud write verification failed.');return current+1}
 
 const server=http.createServer(async(req,res)=>{
  try{
   if(req.method==='OPTIONS')return send(res,204,{});
   if(req.method==='GET'&&(req.url==='/'||req.url==='/index.html'))return html(res);
-  if(req.method==='GET'&&req.url==='/api/health')return send(res,200,{ok:true,cloudConfigured:!!(SUPABASE_URL&&SUPABASE_KEY&&SESSION_SECRET)});
+  if(req.method==='GET'&&req.url==='/api/health'){try{const st=await getState();return send(res,200,{ok:true,version:APP_VERSION,cloudConfigured:!!(SUPABASE_URL&&SUPABASE_KEY&&SESSION_SECRET),cloudReachable:true,revision:Number(st.revision||0),updatedAt:st.updated_at||null})}catch(e){return send(res,200,{ok:false,version:APP_VERSION,cloudConfigured:!!(SUPABASE_URL&&SUPABASE_KEY&&SESSION_SECRET),cloudReachable:false,error:e.message||'Cloud database check failed'})}}
   if(req.method==='POST'&&req.url==='/api/login'){
    const body=JSON.parse(await readBody(req));return send(res,200,await login(body));
   }
@@ -36,9 +37,9 @@ const server=http.createServer(async(req,res)=>{
    if(!auth(req))return send(res,401,{error:'unauthorized'});return send(res,200,await getState());
   }
   if(req.method==='POST'&&req.url==='/api/state'){
-   if(!auth(req))return send(res,401,{error:'unauthorized'});const body=JSON.parse(await readBody(req));if(!body||!body.db)return send(res,400,{error:'Database payload missing'});const revision=await saveState(Number(body.revision||0),body.db);return send(res,200,{ok:true,revision});
+   if(!auth(req))return send(res,401,{error:'unauthorized'});const body=JSON.parse(await readBody(req));if(!body||!body.db)return send(res,400,{error:'Database payload missing'});const revision=await saveState(Number(body.revision||0),body.db);return send(res,200,{ok:true,version:APP_VERSION,revision,saved:true});
   }
   return send(res,404,{error:'Not found'});
  }catch(e){const code=e.code===401?401:e.code===409?409:500;send(res,code,{error:e.message||'Server error',revision:e.currentRevision});}
 });
-server.listen(PORT,HOST,()=>console.log(`LSCC Cloud V6 listening on port ${PORT}`));
+server.listen(PORT,HOST,()=>console.log(`LSCC Cloud V6.1 listening on port ${PORT}`));

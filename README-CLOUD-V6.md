@@ -30,3 +30,16 @@ Use the existing V5 application's **Settings → Backup JSON** to export the cur
 - Use the hosting provider's HTTPS URL.
 - The application authenticates users through the server before returning the central database.
 - Database updates use a revision check and reject stale writes.
+
+## V6.1 persistence fix
+
+This build changes cloud persistence so that:
+- saves are queued and awaited instead of being silently skipped while another save is running;
+- Logout waits for the latest cloud save and is blocked if the save cannot be confirmed;
+- a local copy is retained as a safety backup before login replaces the browser state;
+- if the cloud is still at the empty/initial revision while this device has existing records, the user is asked whether to upload the device records instead of silently wiping them;
+- the header shows Cloud: synced / pending / saving / offline / conflict;
+- every successful Supabase update is read back and verified by the server;
+- `/api/health` now checks actual Supabase reachability and reports the current cloud revision.
+
+**Important:** Do not run `supabase.sql` again for this update. The existing `lscc_state` table is reused so existing cloud data is not reset.
